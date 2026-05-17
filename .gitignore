@@ -1,0 +1,25 @@
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+*.log
+
+# Node.js
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+
+# Mac/Windows
+.DS_Store
+Thumbs.db
