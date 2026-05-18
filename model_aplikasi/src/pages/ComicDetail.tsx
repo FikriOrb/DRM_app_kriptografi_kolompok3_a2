@@ -21,6 +21,7 @@ export default function ComicDetail() {
   const [downloadedChapters, setDownloadedChapters] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadError, setDownloadError] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,6 +76,7 @@ export default function ComicDetail() {
 
     if (downloadedChapters.has(chapter.id)) {
       try {
+        setDownloadError('');
         await removeChapterOffline(comic.id, chapter.id);
         setDownloadedChapters(prev => {
           const next = new Set(prev);
@@ -83,17 +85,18 @@ export default function ComicDetail() {
         });
       } catch (e) {
         console.error(e);
-        alert('Remove download failed');
+        setDownloadError('Remove download failed');
       }
     } else {
       setDownloading(chapter.id);
       setDownloadProgress(0);
+      setDownloadError('');
       try {
         await downloadChapter(comic, chapter, setDownloadProgress);
         setDownloadedChapters(prev => new Set(prev).add(chapter.id));
       } catch (e) {
         console.error(e);
-        alert(e instanceof Error ? e.message : 'Download failed');
+        setDownloadError(e instanceof Error ? e.message : 'Download failed');
       } finally {
         setDownloading(null);
         setDownloadProgress(0);
@@ -189,6 +192,12 @@ export default function ComicDetail() {
             <Search size={16} />
           </button>
         </div>
+
+        {downloadError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
+            {downloadError}
+          </div>
+        )}
 
         <AnimatePresence>
           {showSearch && (

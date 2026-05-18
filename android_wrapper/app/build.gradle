@@ -28,6 +28,11 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+    sourceSets {
+        main {
+            assets.srcDirs += file('../../model_aplikasi/dist')
+        }
+    }
 }
 
 dependencies {

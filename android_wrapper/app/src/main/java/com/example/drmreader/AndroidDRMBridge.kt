@@ -2,6 +2,7 @@ package com.example.drmreader
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -14,7 +15,11 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-class AndroidDRMBridge(private val context: Context) {
+class AndroidDRMBridge(private val context: Context, private val apiBaseUrl: String) {
+    companion object {
+        private const val TAG = "DRMBridge"
+    }
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -30,6 +35,9 @@ class AndroidDRMBridge(private val context: Context) {
     private val baseDir: File = File(context.filesDir, "drm_pages").apply { mkdirs() }
 
     @JavascriptInterface
+    fun getApiBaseUrl(): String = apiBaseUrl
+
+    @JavascriptInterface
     fun downloadChapter(payloadJson: String): String = guarded {
         val payload = JSONObject(payloadJson)
         val apiBaseUrl = payload.getString("apiBaseUrl")
@@ -38,6 +46,7 @@ class AndroidDRMBridge(private val context: Context) {
         val comic = payload.getJSONObject("comic")
 
         require(userId.isNotBlank()) { "User id is required for download grants." }
+        Log.i(TAG, "Starting offline download. chapterId=$chapterId apiBaseUrl=$apiBaseUrl")
 
         val grant = postJson(
             apiBaseUrl,
@@ -49,11 +58,13 @@ class AndroidDRMBridge(private val context: Context) {
         val chapter = grant.getJSONObject("chapter")
         val pages = grant.getJSONArray("pages")
         val chapterDir = File(baseDir, safeName(comicId) + "/" + safeName(chapterId)).apply { mkdirs() }
+        Log.i(TAG, "Download grant received. comicId=$comicId chapterId=$chapterId pages=${pages.length()}")
 
         for (i in 0 until pages.length()) {
             val page = pages.getJSONObject(i)
             val pageIndex = page.getInt("pageIndex")
-            val encrypted = downloadBytes(page.getString("encryptedUrl"))
+            val encryptedUrl = normalizeBackendUrl(page.getString("encryptedUrl"), apiBaseUrl)
+            val encrypted = downloadBytes(encryptedUrl)
             val target = File(chapterDir, "page-$pageIndex.bin")
             target.writeBytes(encrypted)
 
@@ -69,6 +80,7 @@ class AndroidDRMBridge(private val context: Context) {
         val chapterMeta = JSONObject(chapter.toString())
             .put("pages", JSONArray())
             .put("images", JSONArray())
+            .put("pageCount", pages.length())
 
         val record = JSONObject()
             .put("comic", comic)
@@ -79,6 +91,7 @@ class AndroidDRMBridge(private val context: Context) {
             .putString(chapterKey(comicId, chapterId), record.toString())
             .apply()
 
+        Log.i(TAG, "Offline download complete. comicId=$comicId chapterId=$chapterId")
         JSONObject().put("downloaded", true)
     }
 
@@ -133,7 +146,7 @@ class AndroidDRMBridge(private val context: Context) {
         prefs.all.forEach { (key, value) ->
             if (key.startsWith("chapter:${safeName(comicId)}:") && value is String) {
                 val record = JSONObject(value)
-                chapters.put(record.getJSONObject("chapter"))
+                chapters.put(chapterWithPageCount(record))
             }
         }
         chapters
@@ -153,7 +166,7 @@ class AndroidDRMBridge(private val context: Context) {
                     .put("comic", comic)
                     .put("chapters", JSONArray())
             }
-            group.getJSONArray("chapters").put(record.getJSONObject("chapter"))
+            group.getJSONArray("chapters").put(chapterWithPageCount(record))
         }
 
         JSONArray(byComic.values)
@@ -161,6 +174,7 @@ class AndroidDRMBridge(private val context: Context) {
 
     private fun postJson(apiBaseUrl: String, body: String, headers: Map<String, String>): JSONObject {
         val url = URL(withAction(apiBaseUrl, "download_grant"))
+        Log.d(TAG, "POST $url")
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15000
@@ -173,22 +187,31 @@ class AndroidDRMBridge(private val context: Context) {
 
         connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
         val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
-        val text = stream.bufferedReader().use { it.readText() }
+        val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
+        if (connection.responseCode !in 200..299) {
+            Log.e(TAG, "API request failed. status=${connection.responseCode} body=$text")
+            error("API request failed (${connection.responseCode}).")
+        }
         val json = JSONObject(text)
         if (!json.optBoolean("ok")) {
-            error(json.optString("error", "API request failed."))
+            val apiError = json.optString("error", "API request failed.")
+            Log.e(TAG, "API returned error: $apiError")
+            error(apiError)
         }
         return json
     }
 
     private fun downloadBytes(url: String): ByteArray {
+        Log.d(TAG, "GET encrypted page $url")
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15000
             readTimeout = 30000
         }
         if (connection.responseCode !in 200..299) {
-            error("Unable to download encrypted page.")
+            val text = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            Log.e(TAG, "Encrypted page download failed. status=${connection.responseCode} body=$text")
+            error("Unable to download encrypted page (${connection.responseCode}).")
         }
         return connection.inputStream.use { it.readBytes() }
     }
@@ -206,6 +229,7 @@ class AndroidDRMBridge(private val context: Context) {
                 .put("data", block())
                 .toString()
         } catch (error: Throwable) {
+            Log.e(TAG, "Bridge call failed", error)
             JSONObject()
                 .put("ok", false)
                 .put("error", error.message ?: "AndroidDRM error.")
@@ -220,6 +244,7 @@ class AndroidDRMBridge(private val context: Context) {
                 .put("data", block())
                 .toString()
         } catch (error: Throwable) {
+            Log.e(TAG, "Bridge call failed", error)
             JSONObject()
                 .put("ok", false)
                 .put("error", error.message ?: "AndroidDRM error.")
@@ -230,6 +255,33 @@ class AndroidDRMBridge(private val context: Context) {
     private fun withAction(apiBaseUrl: String, action: String): String {
         val separator = if (apiBaseUrl.contains("?")) "&" else "?"
         return "$apiBaseUrl${separator}action=$action"
+    }
+
+    private fun chapterWithPageCount(record: JSONObject): JSONObject {
+        val chapter = JSONObject(record.getJSONObject("chapter").toString())
+        val pageCount = record.optInt("pageCount", chapter.optInt("pageCount", 0))
+        val placeholders = JSONArray()
+        for (i in 0 until pageCount) {
+            placeholders.put("")
+        }
+        return chapter
+            .put("pageCount", pageCount)
+            .put("images", placeholders)
+    }
+
+    private fun normalizeBackendUrl(url: String, apiBaseUrl: String): String {
+        val apiUrl = URL(apiBaseUrl)
+        val targetUrl = URL(url)
+        val targetHost = targetUrl.host.lowercase()
+
+        if (targetHost != "localhost" && targetHost != "127.0.0.1") {
+            return url
+        }
+
+        val port = if (apiUrl.port > 0) ":${apiUrl.port}" else ""
+        val normalized = "${apiUrl.protocol}://${apiUrl.host}$port${targetUrl.file}"
+        Log.d(TAG, "Normalized backend URL from $url to $normalized")
+        return normalized
     }
 
     private fun chapterKey(comicId: String, chapterId: String) = "chapter:${safeName(comicId)}:${safeName(chapterId)}"

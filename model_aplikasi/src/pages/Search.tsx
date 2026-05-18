@@ -12,9 +12,18 @@ export default function Search() {
   const [results, setResults] = useState<Comic[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     const fetchResults = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setOffline(true);
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+
+      setOffline(false);
       setLoading(true);
       try {
         setResults(await api.searchComics(searchTerm, selectedGenres));
@@ -56,7 +65,14 @@ export default function Search() {
         </div>
       </header>
 
-      <AnimatePresence>
+      {offline && (
+        <div className="pastel-card p-5 text-center">
+          <p className="text-sm font-bold text-pastel-heading">Search is unavailable offline.</p>
+          <p className="text-xs text-pastel-muted mt-1">Reconnect to search the online library.</p>
+        </div>
+      )}
+
+      {!offline && <AnimatePresence>
         {showFilters && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
@@ -94,9 +110,9 @@ export default function Search() {
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>}
 
-      <section>
+      {!offline && <section>
         {loading ? (
           <div className="flex justify-center py-20">
             <motion.div
@@ -122,7 +138,7 @@ export default function Search() {
             )}
           </>
         )}
-      </section>
+      </section>}
     </div>
   );
 }

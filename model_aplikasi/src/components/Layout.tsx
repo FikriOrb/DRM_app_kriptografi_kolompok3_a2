@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Library, Search, History, User, Heart } from 'lucide-react';
+import { Library, Search, History, User, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const navItems = [
   { icon: Library, label: 'Library', path: '/' },
   { icon: Search, label: 'Search', path: '/search' },
   { icon: History, label: 'History', path: '/history' },
+  { icon: Download, label: 'Downloads', path: '/downloads' },
   { icon: User, label: 'Profile', path: '/profile' },
 ];
 

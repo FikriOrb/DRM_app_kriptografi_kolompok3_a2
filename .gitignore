@@ -13,6 +13,7 @@ local.properties
 .idea/
 *.iml
 *.log
+backend/config.local.php
 
 # Node.js
 node_modules/

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion, useScroll, useSpring } from 'motion/react';
 import { List, ArrowLeft, ArrowRight, Settings, BookOpen } from 'lucide-react';
 import { handleApiError } from '../utils';
-import { isChapterDownloaded, getOfflineImageUrls } from '../services/offlineStorage';
+import { isChapterDownloaded, getOfflineChapterRecord, getOfflineImageUrls } from '../services/offlineStorage';
 import { api } from '../services/api';
 
 export default function Reader() {
@@ -16,6 +16,7 @@ export default function Reader() {
   const [comic, setComic] = useState<Comic | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [showControls, setShowControls] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +27,24 @@ export default function Reader() {
     const fetchData = async () => {
       if (!comicId || !chapterId) return;
       setLoading(true);
+      setErrorMessage('');
       try {
+        const isOffline = await isChapterDownloaded(chapterId, comicId);
+        if (isOffline) {
+          const offlineRecord = await getOfflineChapterRecord(comicId, chapterId);
+          if (offlineRecord) {
+            setComic(offlineRecord.comic);
+            setChapter(offlineRecord.chapter);
+            setImages(await getOfflineImageUrls(offlineRecord.chapter));
+            setLoading(false);
+
+            if (user && navigator.onLine) {
+              api.saveHistory(comicId, chapterId).catch((err) => handleApiError(err, `history/${comicId}/${chapterId}`));
+            }
+            return;
+          }
+        }
+
         const [comicData, chData] = await Promise.all([
           api.comic(comicId),
           api.chapter(comicId, chapterId),
@@ -39,8 +57,7 @@ export default function Reader() {
         }
         
         if (chData) {
-           const isDbOffline = await isChapterDownloaded(chapterId, comicId);
-           if (isDbOffline) {
+           if (isOffline) {
               const offlineUrls = await getOfflineImageUrls(chData);
               setImages(offlineUrls);
            } else {
@@ -49,6 +66,11 @@ export default function Reader() {
         }
         
       } catch (err) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setErrorMessage('This chapter is not available offline. Download it before disconnecting.');
+        } else {
+          setErrorMessage(err instanceof Error ? err.message : 'Unable to load chapter.');
+        }
         handleApiError(err, `read/${comicId}/${chapterId}`);
       } finally {
         setLoading(false);
@@ -75,7 +97,17 @@ export default function Reader() {
       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full" />
     </div>
   );
-  if (!chapter) return <div className="p-10 text-center">Chapter not found</div>;
+  if (!chapter) return (
+    <div className="min-h-screen -mx-6 -mt-8 flex items-center justify-center bg-zinc-900 px-8 text-center text-white">
+      <div>
+        <BookOpen size={48} className="mx-auto mb-4 text-white/40" />
+        <p className="text-sm font-semibold">{errorMessage || 'Chapter not found'}</p>
+        <button onClick={() => navigate('/downloads')} className="mt-6 rounded-xl bg-white/10 px-5 py-3 text-xs font-bold">
+          Open Downloads
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-zinc-900 min-h-screen -mx-6 -mt-8 relative" onClick={() => setShowControls(!showControls)}>

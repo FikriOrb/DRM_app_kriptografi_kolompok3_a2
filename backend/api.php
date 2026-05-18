@@ -3,9 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, X-User-Id');
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+assert_runtime_secrets_configured();
+apply_cors_headers();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -25,6 +24,7 @@ try {
         'page_stream' => stream_page_image(),
         'page_bin' => stream_page_bin(),
         'login' => login_user(),
+        'register' => register_user(),
         'profile' => profile(),
         'favorites' => favorites(),
         'favorite' => favorite(),
@@ -199,7 +199,7 @@ function get_chapter(): never
 function stream_page_bin(): never
 {
     $pageId = (int) ($_GET['page_id'] ?? 0);
-    $token = (string) ($_GET['token'] ?? '');
+    $grant = (string) ($_GET['grant'] ?? '');
     if ($pageId <= 0) {
         fail('Invalid page id.');
     }
@@ -211,10 +211,7 @@ function stream_page_bin(): never
         fail('Page not found.', 404);
     }
 
-    $expected = page_token((int) $page['id'], (int) $page['chapter_id']);
-    if (!hash_equals($expected, $token)) {
-        fail('Invalid page token.', 403);
-    }
+    require_download_grant((int) $page['chapter_id'], $grant);
 
     $file = __DIR__ . '/' . ltrim($page['encrypted_path'], '/');
     if (!is_file($file)) {
@@ -226,6 +223,27 @@ function stream_page_bin(): never
     header('Content-Disposition: inline; filename="page-' . $pageId . '.bin"');
     readfile($file);
     exit;
+}
+
+function require_download_grant(int $chapterId, string $grant): void
+{
+    if ($grant === '') {
+        fail('Download grant required.', 403);
+    }
+
+    $stmt = pdo()->prepare('SELECT id FROM download_grants
+        WHERE chapter_id = :chapter_id
+          AND token_hash = :token_hash
+          AND expires_at > CURRENT_TIMESTAMP
+        LIMIT 1');
+    $stmt->execute([
+        ':chapter_id' => $chapterId,
+        ':token_hash' => hash('sha256', $grant),
+    ]);
+
+    if (!$stmt->fetch()) {
+        fail('Invalid or expired download grant.', 403);
+    }
 }
 
 function stream_page_image(): never
@@ -284,21 +302,63 @@ function login_user(): never
 
     $body = request_json();
     $email = strtolower(trim((string) ($body['email'] ?? '')));
-    $displayName = trim((string) ($body['displayName'] ?? 'Reader'));
+    $password = (string) ($body['password'] ?? '');
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        fail('Valid email is required.');
+    if ($email === '' || $password === '') {
+        fail('Email and password are required.');
     }
-    if ($displayName === '') {
-        $displayName = 'Reader';
-    }
-
-    $stmt = pdo()->prepare('INSERT INTO users (email, display_name) VALUES (:email, :display_name)
-        ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = CURRENT_TIMESTAMP');
-    $stmt->execute([':email' => $email, ':display_name' => $displayName]);
 
     $stmt = pdo()->prepare('SELECT * FROM users WHERE email = :email');
     $stmt->execute([':email' => $email]);
+    $user = $stmt->fetch();
+
+    if (!$user || !password_verify($password, $user['password_hash'])) {
+        fail('Invalid email or password.');
+    }
+
+    ok(map_user($user));
+}
+
+function register_user(): never
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        fail('POST required.', 405);
+    }
+
+    $body = request_json();
+    $email = strtolower(trim((string) ($body['email'] ?? '')));
+    $password = (string) ($body['password'] ?? '');
+    $displayName = trim((string) ($body['displayName'] ?? ''));
+
+    if ($email === '' || $password === '' || $displayName === '') {
+        fail('All fields are required.');
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        fail('Invalid email format.');
+    }
+
+    if (strlen($password) < 6) {
+        fail('Password must be at least 6 characters.');
+    }
+
+    $stmt = pdo()->prepare('SELECT id FROM users WHERE email = :email');
+    $stmt->execute([':email' => $email]);
+    if ($stmt->fetch()) {
+        fail('Email already registered.');
+    }
+
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = pdo()->prepare('INSERT INTO users (email, password_hash, display_name) VALUES (:email, :password_hash, :display_name)');
+    $stmt->execute([
+        ':email' => $email,
+        ':password_hash' => $hash,
+        ':display_name' => $displayName
+    ]);
+
+    $userId = pdo()->lastInsertId();
+    $stmt = pdo()->prepare('SELECT * FROM users WHERE id = :id');
+    $stmt->execute([':id' => $userId]);
     $user = $stmt->fetch();
 
     ok(map_user($user));
@@ -483,6 +543,9 @@ function download_grant(): never
         fail('Chapter not found.', 404);
     }
 
+    $cleanup = pdo()->prepare('DELETE FROM download_grants WHERE expires_at <= CURRENT_TIMESTAMP');
+    $cleanup->execute();
+
     $token = bin2hex(random_bytes(32));
     $stmt = pdo()->prepare('INSERT INTO download_grants (user_id, chapter_id, token_hash, expires_at)
         VALUES (:user_id, :chapter_id, :token_hash, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE))');
@@ -494,14 +557,13 @@ function download_grant(): never
 
     $stmt = pdo()->prepare('SELECT id, chapter_id, page_index, mime_type, key_base64, iv_base64 FROM chapter_pages WHERE chapter_id = :chapter_id ORDER BY page_index ASC');
     $stmt->execute([':chapter_id' => $chapterId]);
-    $pages = array_map(static function (array $row): array {
+    $pages = array_map(static function (array $row) use ($token): array {
         $pageId = (int) $row['id'];
-        $chapterId = (int) $row['chapter_id'];
         return [
             'id' => (string) $pageId,
             'pageIndex' => (int) $row['page_index'],
             'mimeType' => $row['mime_type'],
-            'encryptedUrl' => absolute_public_url('api.php?action=page_bin&page_id=' . $pageId . '&token=' . page_token($pageId, $chapterId)),
+            'encryptedUrl' => absolute_public_url('api.php?action=page_bin&page_id=' . $pageId . '&grant=' . rawurlencode($token)),
             'keyBase64' => $row['key_base64'],
             'ivBase64' => $row['iv_base64'],
         ];

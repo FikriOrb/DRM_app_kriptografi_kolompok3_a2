@@ -4,9 +4,16 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
+assert_runtime_secrets_configured();
+apply_cors_headers();
 
 try {
     ensure_storage_dirs();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         fail('POST required.', 405);
@@ -14,9 +21,8 @@ try {
 
     $token = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? ($_POST['admin_token'] ?? '');
     if (!hash_equals(ADMIN_UPLOAD_TOKEN, (string) $token)) {
-    // KITA BONGKAR ISI TOKENNYA DI SINI
-    fail('Gagal! PHP Minta: "' . ADMIN_UPLOAD_TOKEN . '" TAPI Form mengirim: "' . $token . '"', 403);
-}
+        fail('Invalid admin token.', 403);
+    }
 
     $title = trim((string) ($_POST['title'] ?? ''));
     $description = trim((string) ($_POST['description'] ?? ''));

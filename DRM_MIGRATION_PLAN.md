@@ -1,11 +1,30 @@
 # DRM Migration Plan
 
+## Implementation Status Update - 2026-05-17
+
+- [x] User approved continuing beyond the initial plan with "lakukan saja".
+- [x] PHP backend files exist in `backend/`.
+- [x] MySQL schema exists in `backend/db_manga.sql`.
+- [x] React Firebase dependency and Firestore imports have been removed from active source.
+- [x] React API client exists in `model_aplikasi/src/services/api.ts`.
+- [x] React offline service now calls `window.AndroidDRM` instead of browser IndexedDB.
+- [x] Android Studio project exists in `android_wrapper/`.
+- [x] Android wrapper includes `MainActivity.kt`, `AndroidDRMBridge.kt`, manifest, and network security config.
+- [x] `npm run lint`, `npm run build`, and PHP syntax checks pass.
+- [ ] Android command-line build is not verified because this checkout has no `gradlew.bat` and Gradle is not installed in PATH.
+- [x] MySQL import and live API endpoint testing verified on the XAMPP machine.
+- [x] `upload_admin.php` tested with sample images and confirmed encrypted `.bin` page output.
+- [x] Backend hardening added for configurable CORS, required runtime secrets, and encrypted storage access blocking.
+- [x] Android WebView can load the React app shell from bundled local assets for offline startup.
+- [x] React caches last successful online API data for offline Library/Detail/History access; Search remains online-only.
+- [ ] End-to-end Android tests still need to verify `FLAG_SECURE`, encrypted download storage, encrypted preferences, and offline reading with network disabled.
+
 ## Scope And Execution Gate
 
 - [x] Analyzed `prompt01.md`.
 - [x] Analyzed the existing React project in `model_aplikasi`.
 - [x] Confirmed this document is TASK 1 only.
-- [ ] Do not execute TASK 2, TASK 3, or TASK 4 until the user reviews this plan and says `Proceed`.
+- [x] Do not execute TASK 2, TASK 3, or TASK 4 until the user reviews and approves continuing.
 
 ## Current Project Snapshot
 
@@ -308,9 +327,9 @@
 
 ## Verification Plan
 
-- [ ] After TASK 2, import `db_manga.sql` into MySQL and verify tables/indexes.
-- [ ] After TASK 2, test `upload_admin.php` with sample images and confirm only `.bin` pages persist.
-- [ ] After TASK 2, call each `api.php?action=...` endpoint with valid and invalid inputs.
+- [x] After TASK 2, import `db_manga.sql` into MySQL and verify tables/indexes.
+- [x] After TASK 2, test `upload_admin.php` with sample images and confirm only `.bin` pages persist.
+- [x] After TASK 2, call each `api.php?action=...` endpoint with valid and invalid inputs.
 - [ ] After TASK 3, run `npm install` if dependency changes require lockfile updates.
 - [ ] After TASK 3, run `npm run lint`.
 - [ ] After TASK 3, run `npm run build`.

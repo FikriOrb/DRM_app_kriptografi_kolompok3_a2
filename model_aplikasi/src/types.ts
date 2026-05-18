@@ -24,6 +24,7 @@ export interface Chapter {
   title: string;
   images: string[];
   pages?: PageDescriptor[];
+  pageCount?: number;
   createdAt: string;
 }
 
@@ -64,6 +65,7 @@ export interface HistoryWithComic extends HistoryItem {
 }
 
 export interface AndroidDRMBridge {
+  getApiBaseUrl(): string;
   downloadChapter(payloadJson: string): string;
   isChapterDownloaded(comicId: string, chapterId: string): boolean;
   removeChapter(comicId: string, chapterId: string): boolean;

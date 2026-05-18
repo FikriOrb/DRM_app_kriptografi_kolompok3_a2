@@ -13,9 +13,39 @@ const getBaseHost = () => {
   }
   return 'localhost';
 };
-export const API_BASE_URL = configuredBase || `http://${getBaseHost()}/manga_api/api.php`;
+
+function resolveApiBaseUrl() {
+  if (typeof window !== 'undefined') {
+    const androidApiBaseUrl = window.AndroidDRM?.getApiBaseUrl?.();
+    if (androidApiBaseUrl) return androidApiBaseUrl;
+  }
+
+  const fallback = `http://${getBaseHost()}/manga_api/api.php`;
+  if (!configuredBase) return fallback;
+
+  if (typeof window === 'undefined') return configuredBase;
+
+  const host = window.location.hostname;
+  if (
+    host &&
+    host !== 'localhost' &&
+    host !== '127.0.0.1' &&
+    configuredBase.includes('://localhost/')
+  ) {
+    return configuredBase.replace('://localhost/', `://${host}/`);
+  }
+
+  return configuredBase;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 const userKey = 'manga-user';
+const apiCachePrefix = 'manga-api-cache';
+
+function isOffline() {
+  return typeof navigator !== 'undefined' && !navigator.onLine;
+}
 
 export function getStoredUser(): UserProfile | null {
   const raw = localStorage.getItem(userKey);
@@ -48,20 +78,57 @@ function withAction(action: string, params: Record<string, string | number | und
   return url.toString();
 }
 
+function cacheKey(action: string, params: Record<string, string | number | undefined>, userId?: string) {
+  const normalizedParams = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== '')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join('&');
+
+  return `${apiCachePrefix}:${userId || 'guest'}:${action}:${normalizedParams}`;
+}
+
+function readCache<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: T };
+    return parsed.data;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, data: T) {
+  localStorage.setItem(key, JSON.stringify({
+    cachedAt: new Date().toISOString(),
+    data,
+  }));
+}
+
 export function fixImageUrl(url: string | undefined): string {
   if (!url) return '';
+
+  if (url.startsWith('data:')) return url;
+
+  const apiUrl = new URL(API_BASE_URL);
+  const apiOrigin = apiUrl.origin;
   let fixedUrl = url;
+
   if (fixedUrl.startsWith('http://localhost/backend/')) {
-    fixedUrl = fixedUrl.replace('http://localhost/backend/', 'http://localhost/manga_api/');
-  }
-  
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    fixedUrl = fixedUrl.replace('http://localhost/', `http://${window.location.hostname}/`);
+    fixedUrl = fixedUrl.replace('http://localhost/backend/', `${apiOrigin}/manga_api/`);
   }
 
-  if (fixedUrl.startsWith('http://') || fixedUrl.startsWith('https://') || fixedUrl.startsWith('data:')) {
+  if (fixedUrl.startsWith('http://localhost/') || fixedUrl.startsWith('http://127.0.0.1/')) {
+    const parsed = new URL(fixedUrl);
+    return `${apiOrigin}${parsed.pathname}${parsed.search}`;
+  }
+
+  if (fixedUrl.startsWith('http://') || fixedUrl.startsWith('https://')) {
     return fixedUrl;
   }
+
   const baseUrl = API_BASE_URL.replace(/\/api\.php.*$/, '/');
   return `${baseUrl}${fixedUrl.startsWith('/') ? fixedUrl.substring(1) : fixedUrl}`;
 }
@@ -86,6 +153,15 @@ async function request<T>(action: string, options: RequestInit = {}, params: Rec
   const user = getStoredUser();
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
+  const method = (options.method || 'GET').toUpperCase();
+  const canUseCache = method === 'GET' && action !== 'search';
+  const key = cacheKey(action, params, user?.uid);
+
+  if (canUseCache && isOffline()) {
+    const cached = readCache<T>(key);
+    if (cached !== null) return cached;
+    throw new Error('Offline data is not available yet.');
+  }
 
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -94,10 +170,19 @@ async function request<T>(action: string, options: RequestInit = {}, params: Rec
     headers.set('X-User-Id', user.uid);
   }
 
-  const response = await fetch(withAction(action, params), {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(withAction(action, params), {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    if (canUseCache) {
+      const cached = readCache<T>(key);
+      if (cached !== null) return cached;
+    }
+    throw error;
+  }
 
   const contentType = response.headers.get('Content-Type') || '';
   if (!contentType.includes('application/json')) {
@@ -109,14 +194,26 @@ async function request<T>(action: string, options: RequestInit = {}, params: Rec
     throw new Error(payload.error || `API request failed (${response.status})`);
   }
 
-  return fixImageUrlsDeep(payload.data) as T;
+  const data = fixImageUrlsDeep(payload.data) as T;
+  if (canUseCache) {
+    writeCache(key, data);
+  }
+
+  return data;
 }
 
 export const api = {
-  login(email: string, displayName: string) {
+  login(email: string, password: string) {
     return request<UserProfile>('login', {
       method: 'POST',
-      body: JSON.stringify({ email, displayName }),
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  register(email: string, password: string, displayName: string) {
+    return request<UserProfile>('register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, displayName }),
     });
   },
 
@@ -129,6 +226,9 @@ export const api = {
   },
 
   searchComics(q: string, genres: string[]) {
+    if (isOffline()) {
+      return Promise.reject(new Error('Search is unavailable offline.'));
+    }
     return request<Comic[]>('search', {}, { q, genres: genres.join(',') });
   },
 

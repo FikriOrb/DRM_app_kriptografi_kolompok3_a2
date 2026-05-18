@@ -76,7 +76,7 @@ export const isChapterDownloaded = async (chapterId: string, comicId?: string) =
 export const getOfflineImageUrls = async (chapter: Chapter): Promise<string[]> => {
   if (!window.AndroidDRM) return [];
 
-  const pageCount = chapter.pages?.length || chapter.images.length;
+  const pageCount = chapter.pageCount || chapter.pages?.length || chapter.images.length;
   const urls: string[] = [];
 
   for (let i = 0; i < pageCount; i++) {
@@ -106,4 +106,18 @@ export const getOfflineDownloadRecords = async (): Promise<DownloadRecord[]> => 
   const result = parseResult<DownloadRecord[]>(window.AndroidDRM.getDownloads());
   if (!result.ok || !result.data) return [];
   return result.data;
+};
+
+export const getOfflineChapterRecord = async (
+  comicId: string,
+  chapterId: string
+): Promise<{ comic: Comic; chapter: Chapter } | null> => {
+  const downloads = await getOfflineDownloadRecords();
+  const record = downloads.find((item) => item.comic.id === comicId);
+  if (!record) return null;
+
+  const chapter = record.chapters.find((item) => item.id === chapterId);
+  if (!chapter) return null;
+
+  return { comic: record.comic, chapter };
 };

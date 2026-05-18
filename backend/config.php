@@ -1,18 +1,80 @@
 <?php
 declare(strict_types=1);
 
-const DB_HOST = '127.0.0.1';
-const DB_NAME = 'db_manga';
-const DB_USER = 'root';
-const DB_PASS = '';
+$localConfig = [];
+$localConfigFile = __DIR__ . '/config.local.php';
+if (is_file($localConfigFile)) {
+    $loadedConfig = require $localConfigFile;
+    if (is_array($loadedConfig)) {
+        $localConfig = $loadedConfig;
+    }
+}
 
-const ADMIN_UPLOAD_TOKEN = 'FikriAdminManga2026!';
-const API_SECRET = 'PastelComicsRahasia99';
+function config_value(string $key, string $default): string
+{
+    global $localConfig;
 
-const PUBLIC_BASE_URL = 'http://localhost/manga_api';
-const STORAGE_DIR = __DIR__ . '/storage';
-const ENCRYPTED_DIR = STORAGE_DIR . '/encrypted';
-const COVER_DIR = STORAGE_DIR . '/covers';
+    if (array_key_exists($key, $localConfig) && (string) $localConfig[$key] !== '') {
+        return (string) $localConfig[$key];
+    }
+
+    $value = getenv($key);
+    return $value !== false && $value !== '' ? $value : $default;
+}
+
+define('DB_HOST', config_value('DB_HOST', '127.0.0.1'));
+define('DB_NAME', config_value('DB_NAME', 'db_manga'));
+define('DB_USER', config_value('DB_USER', 'root'));
+define('DB_PASS', config_value('DB_PASS', ''));
+
+define('ADMIN_UPLOAD_TOKEN', config_value('ADMIN_UPLOAD_TOKEN', 'FikriAdminManga2026!'));
+define('API_SECRET', config_value('API_SECRET', 'PastelComicsRahasia99'));
+define('CORS_ALLOWED_ORIGINS', config_value(
+    'CORS_ALLOWED_ORIGINS',
+    'null,http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000,http://10.0.2.2,http://10.0.2.2:3000,http://192.168.1.5,http://192.168.1.5:3000'
+));
+
+define('PUBLIC_BASE_URL', config_value('PUBLIC_BASE_URL', 'http://localhost/manga_api'));
+define('STORAGE_DIR', __DIR__ . '/storage');
+define('ENCRYPTED_DIR', STORAGE_DIR . '/encrypted');
+define('COVER_DIR', STORAGE_DIR . '/covers');
+
+function assert_runtime_secrets_configured(): void
+{
+    $defaults = [
+        'ADMIN_UPLOAD_TOKEN' => 'change-this-admin-token',
+        'API_SECRET' => 'change-this-api-secret',
+    ];
+
+    foreach ($defaults as $constant => $defaultValue) {
+        if (constant($constant) === $defaultValue) {
+            fail($constant . ' must be configured before running the API.', 500);
+        }
+    }
+}
+
+function cors_allowed_origins(): array
+{
+    return array_values(array_filter(array_map('trim', explode(',', CORS_ALLOWED_ORIGINS))));
+}
+
+function apply_cors_headers(): void
+{
+    header('Access-Control-Allow-Headers: Content-Type, X-User-Id, X-Admin-Token');
+    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($origin === '') {
+        return;
+    }
+
+    if (!in_array($origin, cors_allowed_origins(), true)) {
+        fail('CORS origin not allowed.', 403);
+    }
+
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+}
 
 function pdo(): PDO
 {

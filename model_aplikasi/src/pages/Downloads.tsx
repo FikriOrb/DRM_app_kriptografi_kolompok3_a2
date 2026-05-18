@@ -33,9 +33,6 @@ export default function Downloads() {
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-4">
-        <Link to="/profile" className="p-2 border border-pastel-border rounded-xl">
-          <ChevronLeft size={20} />
-        </Link>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-pastel-heading">Downloads</h1>
           <p className="text-pastel-muted text-sm">Read offline anytime</p>
