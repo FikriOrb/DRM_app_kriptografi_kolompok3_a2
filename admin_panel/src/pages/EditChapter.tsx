@@ -24,7 +24,7 @@ export default function EditChapter() {
   useEffect(() => {
     const fetchChapter = async () => {
       try {
-        const res = await fetch(`http://localhost/manga_api/api.php?action=chapter&comic_id=${comicId}&chapter_id=${chapterId}`);
+        const res = await fetch(`http://apikomik.rf.gd/api.php?action=chapter&comic_id=${comicId}&chapter_id=${chapterId}`);
         const result = await res.json();
 
         if (result.ok && result.data) {
@@ -91,7 +91,7 @@ export default function EditChapter() {
       
       newFiles.forEach((file) => formData.append('new_pages[]', file));
 
-      const res = await fetch('http://localhost/manga_api/admin_update_chapter.php', {
+      const res = await fetch('http://apikomik.rf.gd/admin_update_chapter.php', {
         method: 'POST',
         body: formData,
       });

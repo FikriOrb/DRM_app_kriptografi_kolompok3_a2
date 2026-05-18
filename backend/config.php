@@ -68,11 +68,12 @@ function apply_cors_headers(): void
         return;
     }
 
-    if (!in_array($origin, cors_allowed_origins(), true)) {
+    $allowed = cors_allowed_origins();
+    if (!in_array('*', $allowed, true) && !in_array($origin, $allowed, true)) {
         fail('CORS origin not allowed.', 403);
     }
 
-    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Origin: ' . (in_array('*', $allowed, true) ? '*' : $origin));
     header('Vary: Origin');
 }
 
