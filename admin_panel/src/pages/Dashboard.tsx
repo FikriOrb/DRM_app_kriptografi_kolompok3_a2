@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Book, Users, Eye, TrendingUp, Loader2, Search } from 'lucide-react';
+import { Book, Users, Eye, TrendingUp, Loader2, Search, Edit, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardData {
