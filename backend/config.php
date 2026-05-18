@@ -31,7 +31,7 @@ define('ADMIN_UPLOAD_TOKEN', config_value('ADMIN_UPLOAD_TOKEN', 'FikriAdminManga
 define('API_SECRET', config_value('API_SECRET', 'PastelComicsRahasia99'));
 define('CORS_ALLOWED_ORIGINS', config_value(
     'CORS_ALLOWED_ORIGINS',
-    'null,http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000,http://10.0.2.2,http://10.0.2.2:3000,http://192.168.1.5,http://192.168.1.5:3000'
+    'null,http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://10.0.2.2,http://10.0.2.2:3000,http://192.168.1.5,http://192.168.1.5:3000'
 ));
 
 define('PUBLIC_BASE_URL', config_value('PUBLIC_BASE_URL', 'http://localhost/manga_api'));

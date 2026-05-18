@@ -24,3 +24,7 @@ yarn-error.log
 # Mac/Windows
 .DS_Store
 Thumbs.db
+
+# Storage / Database (JANGAN DI-PUSH)
+backend/storage/
+*.sql

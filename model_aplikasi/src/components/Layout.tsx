@@ -15,11 +15,12 @@ export default function Layout() {
   const location = useLocation();
 
   // Hide bottom nav on specific pages like Reader or Auth
-  const hideNav = ['/login', '/register'].some(p => location.pathname.startsWith(p)) || location.pathname.includes('/read/');
+  const isReader = location.pathname.includes('/read/');
+  const hideNav = ['/login', '/register'].some(p => location.pathname.startsWith(p)) || isReader;
 
   return (
-    <div className="min-h-screen pb-24">
-      <main className="max-w-md mx-auto px-6 pt-8">
+    <div className={`min-h-screen ${hideNav ? '' : 'pb-24'}`}>
+      <main className={isReader ? 'w-full min-h-screen bg-black' : 'max-w-md mx-auto px-6 pt-8'}>
         <Outlet />
       </main>
 
