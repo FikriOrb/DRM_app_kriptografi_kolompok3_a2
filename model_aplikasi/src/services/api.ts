@@ -153,6 +153,7 @@ async function request<T>(action: string, options: RequestInit = {}, params: Rec
   const user = getStoredUser();
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
+  headers.set('ngrok-skip-browser-warning', '1');
   const method = (options.method || 'GET').toUpperCase();
   const canUseCache = method === 'GET' && action !== 'search';
   const key = cacheKey(action, params, user?.uid);

@@ -78,7 +78,7 @@ export default function UploadComic() {
       });
 
       // Sesuaikan URL ini dengan path di XAMPP Anda
-      const apiUrl = 'http://apikomik.rf.gd/upload_admin.php';
+      const apiUrl = '/upload_admin.php';
       
       const response = await fetch(apiUrl, {
         method: 'POST',

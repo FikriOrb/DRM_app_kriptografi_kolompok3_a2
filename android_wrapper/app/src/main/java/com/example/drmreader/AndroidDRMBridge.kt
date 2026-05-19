@@ -182,6 +182,7 @@ class AndroidDRMBridge(private val context: Context, private val apiBaseUrl: Str
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept", "application/json")
+            setRequestProperty("ngrok-skip-browser-warning", "1")
             headers.forEach { (name, value) -> setRequestProperty(name, value) }
         }
 

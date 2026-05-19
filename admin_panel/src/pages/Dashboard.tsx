@@ -28,7 +28,7 @@ export default function Dashboard() {
     const fetchDashboard = async () => {
       try {
         const token = localStorage.getItem('admin_token') || '';
-        const res = await fetch(`http://apikomik.rf.gd/admin_dashboard_api.php?admin_token=${encodeURIComponent(token)}`);
+        const res = await fetch(`/admin_dashboard_api.php?admin_token=${encodeURIComponent(token)}`);
         const result = await res.json();
 
         if (result.ok && result.data) {

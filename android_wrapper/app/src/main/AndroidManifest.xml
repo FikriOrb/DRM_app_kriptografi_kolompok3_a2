@@ -18,7 +18,7 @@
                 android:value="file:///android_asset/index.html" />
             <meta-data
                 android:name="api_base_url"
-                android:value="http://192.168.1.5/manga_api/api.php" />
+                android:value="https://023c-140-213-34-47.ngrok-free.app/manga_api/api.php" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

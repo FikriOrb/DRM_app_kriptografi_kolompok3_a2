@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
                 allowContentAccess = false
                 cacheMode = WebSettings.LOAD_DEFAULT
                 mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                userAgentString = "DRMReader/1.0"
             }
 
             val trustedHost = android.net.Uri.parse(appUrl).host

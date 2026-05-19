@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Upload, BookOpen, LogOut } from 'lucide-react';
+import { LayoutDashboard, Upload, BookOpen, LogOut, Users as UsersIcon } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import UploadComic from './pages/UploadComic';
 import EditComic from './pages/EditComic';
 import EditChapter from './pages/EditChapter';
 import Login from './pages/Login';
+import Users from './pages/Users';
 
 function Sidebar({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/upload', label: 'Upload Komik', icon: Upload }
+    { path: '/upload', label: 'Upload Komik', icon: Upload },
+    { path: '/users', label: 'Pengguna', icon: UsersIcon }
   ];
 
   return (
@@ -74,6 +76,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<UploadComic />} />
+            <Route path="/users" element={<Users />} />
             <Route path="/edit/:id" element={<EditComic />} />
             <Route path="/edit-chapter/:comicId/:chapterId" element={<EditChapter />} />
           </Routes>

@@ -36,7 +36,7 @@ export default function EditComic() {
   useEffect(() => {
     const fetchComic = async () => {
       try {
-        const res = await fetch(`http://apikomik.rf.gd/api.php?action=comic&id=${id}`);
+        const res = await fetch(`/api.php?action=comic&id=${id}`);
         const result = await res.json();
 
         if (result.ok && result.data) {
@@ -49,7 +49,7 @@ export default function EditComic() {
           setStatusText(comic.status);
           setCoverUrl(comic.coverUrl);
 
-          const chapRes = await fetch(`http://apikomik.rf.gd/api.php?action=chapters&comic_id=${id}`);
+          const chapRes = await fetch(`/api.php?action=chapters&comic_id=${id}`);
           const chapResult = await chapRes.json();
           if (chapResult.ok) {
             setChapters(chapResult.data);
@@ -100,7 +100,7 @@ export default function EditComic() {
         formData.append('cover', coverFile);
       }
 
-      const res = await fetch('http://apikomik.rf.gd/admin_update_comic.php', {
+      const res = await fetch('/admin_update_comic.php', {
         method: 'POST',
         body: formData,
       });
@@ -124,7 +124,7 @@ export default function EditComic() {
     
     try {
       const token = localStorage.getItem('admin_token') || '';
-      const res = await fetch(`http://apikomik.rf.gd/admin_delete_chapter.php`, {
+      const res = await fetch(`/admin_delete_chapter.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ admin_token: token, chapter_id: chapterId })
@@ -176,7 +176,7 @@ export default function EditComic() {
       
       newChapterFiles.forEach((file) => formData.append('pages[]', file));
 
-      const res = await fetch('http://apikomik.rf.gd/admin_add_chapter.php', {
+      const res = await fetch('/admin_add_chapter.php', {
         method: 'POST',
         body: formData,
       });
@@ -185,7 +185,7 @@ export default function EditComic() {
       if (result.ok) {
         alert('Chapter berhasil ditambahkan!');
         // Refresh chapter list
-        const chapRes = await fetch(`http://apikomik.rf.gd/api.php?action=chapters&comic_id=${id}`);
+        const chapRes = await fetch(`/api.php?action=chapters&comic_id=${id}`);
         const chapResult = await chapRes.json();
         if (chapResult.ok) setChapters(chapResult.data);
         
