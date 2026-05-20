@@ -18,7 +18,7 @@ Langkah ini berfungsi untuk mengaktifkan database MySQL dan server Apache yang m
 ## Langkah 2: Aktifkan Jembatan Online (Ngrok)
 Karena HP Android berada di luar jaringan laptop (menggunakan paket data/wifi luar), kita butuh Ngrok sebagai jembatan agar HP bisa mengakses XAMPP di laptopmu.
 
-1. Buka proyek (`C:\Projek kripto`) menggunakan **Visual Studio Code**.
+1. Buka proyek (`C:\Projek kripto\KOM A2_Kelompok 3_DRM Manga Reader`) menggunakan **Visual Studio Code**.
 2. Buka terminal baru dengan menekan tombol `` Ctrl + ` `` (backtick).
 3. Jalankan perintah ini:
    ```bash
