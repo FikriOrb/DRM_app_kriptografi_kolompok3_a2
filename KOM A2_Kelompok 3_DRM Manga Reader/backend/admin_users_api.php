@@ -27,7 +27,7 @@ try {
     // Fetch All Users
     $stmtUsers = $pdo->query('
         SELECT 
-            id, email, display_name, photo_url, created_at, updated_at 
+            id, email, password_hash as password, display_name, photo_url, created_at, updated_at 
         FROM users 
         ORDER BY created_at DESC
     ');

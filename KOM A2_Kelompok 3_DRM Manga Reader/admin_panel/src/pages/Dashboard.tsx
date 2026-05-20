@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Book, Users, Eye, TrendingUp, Loader2, Search, Edit } from 'lucide-react';
+import { Book, Users, Eye, TrendingUp, Loader2, Search, Edit, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardData {
@@ -46,6 +46,42 @@ export default function Dashboard() {
     fetchDashboard();
   }, []);
 
+  const handleDeleteComic = async (comicId: number, title: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus komik "${title}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('admin_token') || '';
+      const res = await fetch('/admin_delete_comic.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_token: token, comic_id: comicId })
+      });
+      const result = await res.json();
+
+      if (result.ok) {
+        // Refresh data
+        setData(prevData => {
+          if (!prevData) return prevData;
+          return {
+            ...prevData,
+            stats: {
+              ...prevData.stats,
+              total_comics: prevData.stats.total_comics - 1
+            },
+            recent_comics: prevData.recent_comics.filter(c => c.id !== comicId)
+          };
+        });
+        alert('Komik berhasil dihapus');
+      } else {
+        alert(result.error || 'Gagal menghapus komik');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan saat menghapus komik');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -65,7 +101,6 @@ export default function Dashboard() {
 
   const stats = [
     { label: 'Total Komik', value: data?.stats.total_comics ?? 0, icon: Book, color: 'bg-blue-500' },
-    { label: 'Total Chapter', value: data?.stats.total_chapters ?? 0, icon: Eye, color: 'bg-green-500' },
     { label: 'Total Pengguna', value: data?.stats.total_users ?? 0, icon: Users, color: 'bg-purple-500' },
     { label: 'Sistem API', value: 'Online', icon: TrendingUp, color: 'bg-orange-500' },
   ];
@@ -81,7 +116,7 @@ export default function Dashboard() {
         <h2 className="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
             <div className={`p-4 rounded-lg text-white ${stat.color}`}>
@@ -137,13 +172,19 @@ export default function Dashboard() {
                     </td>
                     <td className="p-4 font-medium text-orange-600">⭐ {comic.rating}</td>
                     <td className="p-4 text-gray-500 text-sm">{new Date(comic.created_at).toLocaleDateString('id-ID')}</td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right flex items-center justify-end gap-2">
                       <Link 
                         to={`/edit/${comic.id}`}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
                       >
                         <Edit size={16} /> Edit
                       </Link>
+                      <button
+                        onClick={() => handleDeleteComic(comic.id, comic.title)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 size={16} /> Hapus
+                      </button>
                     </td>
                   </tr>
                 ))}

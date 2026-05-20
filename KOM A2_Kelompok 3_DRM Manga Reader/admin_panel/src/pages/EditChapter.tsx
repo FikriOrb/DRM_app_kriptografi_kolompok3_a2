@@ -63,6 +63,7 @@ export default function EditChapter() {
   };
 
   const toggleDeleteExisting = (pageId: string) => {
+    console.log("Panel clicked! ID:", pageId);
     if (deletedPageIds.includes(pageId)) {
       setDeletedPageIds(prev => prev.filter(id => id !== pageId));
     } else {
@@ -71,7 +72,9 @@ export default function EditChapter() {
   };
 
   const handleUpdate = async () => {
+    console.log("Simpan Perubahan clicked!");
     if (!number) {
+      alert("Nomor chapter kosong");
       setStatus({ type: 'error', message: 'Nomor chapter tidak boleh kosong.' });
       return;
     }
@@ -96,7 +99,10 @@ export default function EditChapter() {
         body: formData,
       });
 
+      console.log("Fetch response received", res.status);
       const result = await res.json();
+      console.log("Fetch JSON:", result);
+
       if (result.ok) {
         setStatus({ type: 'success', message: 'Chapter berhasil diperbarui!' });
         // Refresh page after a short delay

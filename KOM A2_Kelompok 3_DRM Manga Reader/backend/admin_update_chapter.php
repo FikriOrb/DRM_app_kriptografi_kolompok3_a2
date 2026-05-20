@@ -57,7 +57,7 @@ try {
             
             // Delete actual files first
             $stmt = $pdo->prepare("SELECT encrypted_path FROM chapter_pages WHERE id IN ($placeholders) AND chapter_id = ?");
-            $params = $idsToDelete;
+            $params = array_values($idsToDelete);
             $params[] = $chapterId;
             $stmt->execute($params);
             

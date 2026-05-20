@@ -6,6 +6,7 @@ interface User {
   email: string;
   display_name: string;
   photo_url: string | null;
+  password?: string;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +72,7 @@ export default function Users() {
                 <th className="p-4 font-semibold text-gray-600">ID</th>
                 <th className="p-4 font-semibold text-gray-600">Nama Lengkap</th>
                 <th className="p-4 font-semibold text-gray-600">Email</th>
+                <th className="p-4 font-semibold text-gray-600">Password</th>
                 <th className="p-4 font-semibold text-gray-600">Tanggal Daftar</th>
                 <th className="p-4 font-semibold text-gray-600">Terakhir Update</th>
               </tr>
@@ -97,6 +99,7 @@ export default function Users() {
                       {user.display_name}
                     </td>
                     <td className="p-4 text-gray-600">{user.email}</td>
+                    <td className="p-4 text-gray-600 font-mono text-xs">{user.password || 'N/A'}</td>
                     <td className="p-4 text-gray-500">{new Date(user.created_at).toLocaleString('id-ID')}</td>
                     <td className="p-4 text-gray-500">{new Date(user.updated_at).toLocaleString('id-ID')}</td>
                   </tr>

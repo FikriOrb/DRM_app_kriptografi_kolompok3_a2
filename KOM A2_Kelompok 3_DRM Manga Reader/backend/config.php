@@ -162,7 +162,14 @@ function absolute_public_url(string $path): string
         return $path;
     }
 
-    return rtrim(PUBLIC_BASE_URL, '/') . '/' . ltrim($path, '/');
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? "https://" : "http://";
+    $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost';
+    
+    // Default base path is /manga_api unless we are at root
+    $basePath = '/manga_api';
+    $baseUrl = $protocol . $host . $basePath;
+
+    return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
 }
 
 function page_token(int $pageId, int $chapterId): string
